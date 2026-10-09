@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UniSpace - ปฏิทินกลุ่ม & สแกนตารางเรียน</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Prompt Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tesseract.js (สำหรับ AI สแกนภาพ OCR) -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: #e2e8f0; border: 1px solid #e2e8f0; }
+        .calendar-cell { background: white; min-height: 100px; padding: 0.5rem; position: relative; }
+        .calendar-cell.inactive { background: #f8fafc; color: #94a3b8; }
+        .calendar-cell.out-of-term { background: #f1f5f9; opacity: 0.6; cursor: not-allowed; }
+        .calendar-cell.holiday { background: #fff1f2; } /* สีพื้นหลังวันหยุด */
+        .calendar-header { display: grid; grid-template-columns: repeat(7, 1fr); background: #f1f5f9; border: 1px solid #e2e8f0; border-bottom: none; }
+        
+        .holiday-badge {
+            background-color: #ffe4e6;
+            color: #e11d48;
+            border: 1px solid #fecdd3;
+            font-size: 0.65rem;
+            padding: 2px 4px;
+            border-radius: 4px;
+            margin-bottom: 2px;
+            font-weight: 600;
+            display: inline-block;
+            width: 100%;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+    <!-- Header Navigation -->
+    <header class="bg-indigo-600 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-calendar-days text-3xl"></i>
+                <div>
+                    <h1 class="text-xl font-bold">UniSpace</h1>
+                    <p class="text-xs text-indigo-200">ระบบปฏิทินกลุ่ม & สแกนตารางเรียนอัตโนมัติ</p>
+                </div>
+            </div>
+            <!-- Tab Navigation -->
+            <nav class="flex bg-indigo-700/60 p-1 rounded-lg text-sm font-medium overflow-x-auto w-full md:w-auto">
+                <button onclick="switchTab('calendar-tab')" id="nav-calendar-tab" class="tab-btn px-3 md:px-4 py-2 rounded-md transition bg-white text-indigo-700 font-semibold shadow whitespace-nowrap">
+                    <i class="fa-regular fa-calendar mr-1"></i> ปฏิทิน
+                </button>
+                <button onclick="switchTab('update-tab')" id="nav-update-tab" class="tab-btn px-3 md:px-4 py-2 rounded-md transition text-indigo-100 hover:text-white whitespace-nowrap">
+                    <i class="fa-solid fa-camera mr-1"></i> อัปเดตเวลา
+                </button>
+                <button onclick="switchTab('settings-tab')" id="nav-settings-tab" class="tab-btn px-3 md:px-4 py-2 rounded-md transition text-indigo-100 hover:text-white whitespace-nowrap">
+                    <i class="fa-solid fa-gear mr-1"></i> ตั้งค่าเทอม
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+
+        <!-- TAB 1: ปฏิทินกลุ่ม -->
+        <section id="calendar-tab" class="tab-content block space-y-4">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800 flex items-center">
+                            <i class="fa-solid fa-users text-indigo-600 mr-2"></i> ภาพรวมเวลาว่างของกลุ่ม
+                        </h2>
+                        <p id="termDisplayStatus" class="text-xs text-indigo-600 font-medium mt-1">
+                            <i class="fa-solid fa-thumbtack mr-1"></i> กำลังแสดงผล: <span id="currentTermName">เทอม 1</span> (<span id="termRangeDisplay">ยังไม่ได้กำหนด</span>)
+                        </p>
+                    </div>
+                    
+                    <div class="flex items-center gap-2">
+                        <button onclick="changeMonth(-1)" class="p-2 hover:bg-slate-100 rounded-lg transition"><i class="fa-solid fa-chevron-left"></i></button>
+                        <span id="currentMonthDisplay" class="font-bold text-lg min-w-[140px] text-center">เดือน...</span>
+                        <button onclick="changeMonth(1)" class="p-2 hover:bg-slate-100 rounded-lg transition"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                </div>
+
+                <!-- Color Legend -->
+                <div class="flex flex-wrap gap-3 mb-4 text-xs font-medium">
+                    <span class="flex items-center gap-1 text-slate-600"><div class="w-3 h-3 rounded-full bg-emerald-500"></div> ว่างตรงกัน</span>
+                    <span class="flex items-center gap-1 text-slate-600"><div class="w-3 h-3 rounded-full bg-amber-400"></div> ว่างบางคน</span>
+                    <span class="flex items-center gap-1 text-slate-600"><div class="w-3 h-3 rounded-full bg-rose-500"></div> ไม่ว่าง</span>
+                    <span class="flex items-center gap-1 text-slate-600 ml-2 border-l pl-3"><div class="w-3 h-3 rounded bg-rose-100 border border-rose-300"></div> วันหยุดราชการ/เสาร์-อาทิตย์</span>
+                </div>
+
+                <!-- API Loading Status -->
+                <div id="apiLoadingStatus" class="text-xs text-amber-600 mb-2 hidden">
+                    <i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังดึงข้อมูลวันหยุดราชการจากอินเทอร์เน็ต...
+                </div>
+
+                <!-- Calendar Grid -->
+                <div class="calendar-header text-center text-sm font-bold py-2 text-slate-600">
+                    <div class="text-rose-500">อาทิตย์</div><div>จันทร์</div><div>อังคาร</div><div>พุธ</div><div>พฤหัสฯ</div><div>ศุกร์</div><div class="text-rose-500">เสาร์</div>
+                </div>
+                <div id="calendarGrid" class="calendar-grid rounded-b-lg overflow-hidden text-sm">
+                    <!-- JS จะเรนเดอร์ปฏิทินที่นี่ -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: สแกน/อัปเดตเวลา (ยกมาจากเวอร์ชันที่แล้ว) -->
+        <section id="update-tab" class="tab-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- เครื่องมือสแกนตารางเรียน -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-bold text-slate-800 mb-2 flex items-center">
+                        <i class="fa-solid fa-camera-retro text-indigo-600 mr-2"></i> สแกนรูปตารางเรียน (AI OCR)
+                    </h2>
+                    <p class="text-xs text-slate-500 mb-4">ระบบจะลงตาราง 'ไม่ว่าง' ให้อัตโนมัติ (เฉพาะวันที่อยู่ในช่วงเปิดเทอม)</p>
+                    
+                    <div class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:bg-slate-50 transition cursor-pointer relative">
+                        <input type="file" id="scheduleImage" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="previewAndScanImage(event)">
+                        <div id="uploadPlaceholder">
+                            <i class="fa-solid fa-image text-4xl text-slate-300 mb-2"></i>
+                            <p class="text-sm font-medium text-indigo-600">คลิกหรือลากรูปตารางเรียนมาที่นี่</p>
+                            <p class="text-xs text-slate-400 mt-1">รองรับ JPG, PNG</p>
+                        </div>
+                        <img id="imagePreview" class="hidden max-h-48 mx-auto rounded-md shadow-sm" alt="Preview">
+                    </div>
+
+                    <div id="scanStatus" class="hidden mt-4 p-3 rounded-lg text-sm font-medium flex items-center">
+                        <i id="scanIcon" class="fa-solid fa-spinner fa-spin mr-2"></i>
+                        <span id="scanText">กำลังโหลด...</span>
+                    </div>
+
+                    <div id="scanResultArea" class="hidden mt-4 space-y-3 border-t pt-4">
+                        <h3 class="text-sm font-bold text-slate-700">ข้อมูลที่ตรวจพบ:</h3>
+                        <div id="parsedItemsList" class="space-y-2 max-h-40 overflow-y-auto"></div>
+                        <button onclick="saveScannedItems()" class="w-full bg-indigo-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-indigo-700">
+                            บันทึกข้อมูลตารางเรียนเข้าปฏิทิน
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ฟอร์มระบุเวลาว่างด้วยตัวเอง -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center">
+                        <i class="fa-solid fa-pen-to-square text-indigo-600 mr-2"></i> อัปเดตสถานะด้วยตัวเอง
+                    </h2>
+                    
+                    <form id="availabilityForm" class="space-y-4" onsubmit="handleManualSave(event)">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">ชื่อของคุณ</label>
+                                <input type="text" id="userName" required placeholder="เช่น นิว" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">วันที่</label>
+                                <input type="date" id="eventDate" required class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-indigo-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">เลือกเวลาที่ไม่ว่าง / ว่าง</label>
+                            
+                            <label class="flex items-center mb-3 p-2 bg-slate-50 border rounded-lg cursor-pointer hover:bg-slate-100 transition">
+                                <input type="checkbox" id="allDayCheck" class="w-4 h-4 text-indigo-600 mr-2" onchange="toggleTimeSlots()">
+                                <span class="text-sm font-bold">เลือกทั้งวัน (All Day)</span>
+                            </label>
+
+                            <div class="grid grid-cols-3 gap-2" id="slotContainer">
+                                <label class="flex flex-col items-center justify-center p-2 border rounded-lg cursor-pointer has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 transition">
+                                    <input type="checkbox" name="timeSlot" value="Morning" class="hidden">
+                                    <span class="text-sm font-semibold">เช้า</span>
+                                    <span class="text-[10px] text-slate-500">08:00 - 12:00</span>
+                                </label>
+                                <label class="flex flex-col items-center justify-center p-2 border rounded-lg cursor-pointer has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 transition">
+                                    <input type="checkbox" name="timeSlot" value="Afternoon" class="hidden">
+                                    <span class="text-sm font-semibold">บ่าย</span>
+                                    <span class="text-[10px] text-slate-500">13:00 - 16:00</span>
+                                </label>
+                                <label class="flex flex-col items-center justify-center p-2 border rounded-lg cursor-pointer has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-500 transition">
+                                    <input type="checkbox" name="timeSlot" value="Evening" class="hidden">
+                                    <span class="text-sm font-semibold">เย็น</span>
+                                    <span class="text-[10px] text-slate-500">16:00 - 19:00</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">สถานะสำหรับช่วงเวลาที่เลือก</label>
+                            <div class="flex gap-4">
+                                <label class="flex-1 flex items-center justify-center p-2 border rounded-lg cursor-pointer hover:bg-emerald-50 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50 has-[:checked]:text-emerald-700">
+                                    <input type="radio" name="statusType" value="free" checked class="hidden">
+                                    <i class="fa-solid fa-circle-check text-emerald-500 mr-2"></i> แจ้งว่าว่าง
+                                </label>
+                                <label class="flex-1 flex items-center justify-center p-2 border rounded-lg cursor-pointer hover:bg-rose-50 has-[:checked]:border-rose-500 has-[:checked]:bg-rose-50 has-[:checked]:text-rose-700">
+                                    <input type="radio" name="statusType" value="busy" class="hidden">
+                                    <i class="fa-solid fa-circle-xmark text-rose-500 mr-2"></i> ติดธุระ/มีเรียน
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">รายละเอียด (ถ้ามี)</label>
+                            <input type="text" id="statusDetail" placeholder="เช่น วิชา CS101 ห้อง 2 อ.สมชาย" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-indigo-500 text-sm">
+                        </div>
+
+                        <button type="submit" class="w-full bg-slate-800 text-white font-medium py-2.5 rounded-lg hover:bg-slate-900 transition flex items-center justify-center">
+                            <i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูล
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: ตั้งค่าเทอม (กำหนดขอบเขตปฏิทิน) -->
+        <section id="settings-tab" class="tab-content hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 max-w-2xl mx-auto">
+                <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center border-b pb-4">
+                    <i class="fa-solid fa-gear text-indigo-600 mr-2"></i> ตั้งค่าระบบ & ภาคเรียน
+                </h2>
+                <p class="text-sm text-slate-600 mb-6">กำหนดช่วงวันเปิด-ปิดเทอม เพื่อให้ระบบปฏิทินแสดงผลและรับข้อมูลเฉพาะในช่วงเวลาเรียนเท่านั้น</p>
+
+                <div class="space-y-6">
+                    <!-- เทอม 1 -->
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-bold text-slate-800">ภาคเรียนที่ 1</h3>
+                            <label class="flex items-center gap-2 text-sm font-medium text-indigo-700 cursor-pointer">
+                                <input type="radio" name="activeTerm" value="term1" checked onchange="updateActiveTerm()" class="w-4 h-4 text-indigo-600">
+                                ใช้เป็นเทอมปัจจุบัน
+                            </label>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">วันเปิดเทอม</label>
+                                <input type="date" id="t1_start" class="w-full px-3 py-2 text-sm border rounded-lg outline-none focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">วันปิดเทอม</label>
+                                <input type="date" id="t1_end" class="w-full px-3 py-2 text-sm border rounded-lg outline-none focus:border-indigo-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- เทอม 2 -->
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-bold text-slate-800">ภาคเรียนที่ 2</h3>
+                            <label class="flex items-center gap-2 text-sm font-medium text-indigo-700 cursor-pointer">
+                                <input type="radio" name="activeTerm" value="term2" onchange="updateActiveTerm()" class="w-4 h-4 text-indigo-600">
+                                ใช้เป็นเทอมปัจจุบัน
+                            </label>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">วันเปิดเทอม</label>
+                                <input type="date" id="t2_start" class="w-full px-3 py-2 text-sm border rounded-lg outline-none focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">วันปิดเทอม</label>
+                                <input type="date" id="t2_end" class="w-full px-3 py-2 text-sm border rounded-lg outline-none focus:border-indigo-500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="saveTermSettings()" class="mt-6 w-full bg-indigo-600 text-white font-medium py-3 rounded-lg hover:bg-indigo-700 transition">
+                    บันทึกการตั้งค่า
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- JavaScript LOGIC -->
+    <script>
+        // --- 1. Database & State ---
+        let schedules = JSON.parse(localStorage.getItem('unispace_schedules')) || [];
+        let groupMembers = ['คุณ', 'เพื่อน A', 'เพื่อน B'];
+        
+        // Settings: Term Dates
+        let termSettings = JSON.parse(localStorage.getItem('unispace_terms')) || {
+            active: 'term1',
+            term1: { start: '', end: '' },
+            term2: { start: '', end: '' }
+        };
+
+        // Cache สำหรับวันหยุดราชการที่ดึงจาก API
+        let publicHolidays = {}; 
+        let currentYearFetched = null;
+
+        let currentDate = new Date();
+        let scannedDataTemp = [];
+
+        // --- 2. Initial Setup ---
+        function initApp() {
+            // โหลดค่าลงฟอร์มตั้งค่า
+            document.getElementById('t1_start').value = termSettings.term1.start;
+            document.getElementById('t1_end').value = termSettings.term1.end;
+            document.getElementById('t2_start').value = termSettings.term2.start;
+            document.getElementById('t2_end').value = termSettings.term2.end;
+            document.querySelector(`input[name="activeTerm"][value="${termSettings.active}"]`).checked = true;
+            
+            updateTermDisplayUI();
+
+            // พยายามตั้งค่าปฏิทินให้เริ่มที่วันเปิดเทอมปัจจุบัน (ถ้ามีกำหนดไว้)
+            const activeStart = termSettings[termSettings.active].start;
+            if(activeStart) {
+                currentDate = new Date(activeStart);
+            }
+            
+            // โหลดวันหยุดปีปัจจุบัน
+            fetchPublicHolidays(currentDate.getFullYear()).then(() => {
+                renderCalendar();
+            });
+        }
+
+        // --- 3. Tab Navigation ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = "tab-btn px-3 md:px-4 py-2 rounded-md transition text-indigo-100 hover:text-white whitespace-nowrap";
+            });
+
+            document.getElementById(tabId).classList.remove('hidden');
+            document.getElementById(`nav-${tabId}`).className = "tab-btn px-3 md:px-4 py-2 rounded-md transition bg-white text-indigo-700 font-semibold shadow whitespace-nowrap";
+            
+            if(tabId === 'calendar-tab') renderCalendar();
+        }
+
+        // --- 4. Term Settings Logic ---
+        function updateActiveTerm() {
+            // แค่เปลี่ยน UI แต่ยังไม่เซฟ
+        }
+
+        function saveTermSettings() {
+            termSettings = {
+                active: document.querySelector('input[name="activeTerm"]:checked').value,
+                term1: { 
+                    start: document.getElementById('t1_start').value, 
+                    end: document.getElementById('t1_end').value 
+                },
+                term2: { 
+                    start: document.getElementById('t2_start').value, 
+                    end: document.getElementById('t2_end').value 
+                }
+            };
+            localStorage.setItem('unispace_terms', JSON.stringify(termSettings));
+            updateTermDisplayUI();
+            
+            // เลื่อนปฏิทินไปที่เทอมที่เลือก
+            if(termSettings[termSettings.active].start) {
+                currentDate = new Date(termSettings[termSettings.active].start);
+            }
+            renderCalendar();
+            alert('บันทึกการตั้งค่าเทอมเรียบร้อยแล้ว!');
+            switchTab('calendar-tab');
+        }
+
+        function updateTermDisplayUI() {
+            const activeObj = termSettings[termSettings.active];
+            document.getElementById('currentTermName').textContent = termSettings.active === 'term1' ? 'ภาคเรียนที่ 1' : 'ภาคเรียนที่ 2';
+            
+            if (activeObj.start && activeObj.end) {
+                document.getElementById('termRangeDisplay').textContent = `${activeObj.start} ถึง ${activeObj.end}`;
+            } else {
+                document.getElementById('termRangeDisplay').textContent = 'กรุณาตั้งค่าวันเปิด-ปิดเทอม';
+            }
+        }
+
+        // เช็คว่าวันที่นี้อยู่ในช่วงเปิดเทอมหรือไม่
+        function isDateInActiveTerm(dateStr) {
+            const active = termSettings[termSettings.active];
+            if (!active.start || !active.end) return true; // ถ้าไม่ได้ตั้งค่า อนุญาตหมด
+            
+            return dateStr >= active.start && dateStr <= active.end;
+        }
+
+        // --- 5. Public Holidays API (Nager.Date) ---
+        async function fetchPublicHolidays(year) {
+            if (currentYearFetched === year) return; // เคยดึงของปีนี้แล้ว
+
+            document.getElementById('apiLoadingStatus').classList.remove('hidden');
+            
+            try {
+                // ใช้ API nager.at ดึงวันหยุดไทย
+                const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/TH`);
+                if (!res.ok) throw new Error('API Error');
+                const holidays = await res.json();
+                
+                // จัดโครงสร้าง { "YYYY-MM-DD": "ชื่อวันหยุด" }
+                holidays.forEach(h => {
+                    publicHolidays[h.date] = h.localName || h.name;
+                });
+                
+                currentYearFetched = year;
+            } catch (error) {
+                console.warn("ไม่สามารถดึงข้อมูลวันหยุดจาก API ได้:", error);
+                // ข้อมูลจำลองพื้นฐานสำหรับปีปัจจุบันกรณี offline
+                publicHolidays[`${year}-01-01`] = 'วันขึ้นปีใหม่';
+                publicHolidays[`${year}-04-13`] = 'วันสงกรานต์';
+                publicHolidays[`${year}-05-01`] = 'วันแรงงาน';
+                publicHolidays[`${year}-12-05`] = 'วันพ่อแห่งชาติ';
+                publicHolidays[`${year}-12-31`] = 'วันสิ้นปี';
+            } finally {
+                document.getElementById('apiLoadingStatus').classList.add('hidden');
+            }
+        }
+
+        // --- 6. Calendar Engine (With Holidays & Term Limits) ---
+        async function changeMonth(step) {
+            currentDate.setMonth(currentDate.getMonth() + step);
+            // ดึงวันหยุดใหม่ถ้าเปลี่ยนปี
+            if(currentDate.getFullYear() !== currentYearFetched) {
+                await fetchPublicHolidays(currentDate.getFullYear());
+            }
+            renderCalendar();
+        }
+
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+            document.getElementById('currentMonthDisplay').textContent = `${monthNames[month]} ${year}`;
+
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+
+            for (let i = 0; i < firstDay; i++) {
+                grid.innerHTML += `<div class="calendar-cell inactive"></div>`;
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                
+                // 1. เช็ควันเสาร์-อาทิตย์ (0=Sun, 6=Sat)
+                const currentDayOfWeek = new Date(year, month, day).getDay();
+                const isWeekend = (currentDayOfWeek === 0 || currentDayOfWeek === 6);
+                
+                // 2. เช็ควันหยุดราชการจาก API
+                const holidayName = publicHolidays[dateStr];
+                const isHoliday = isWeekend || holidayName;
+
+                // 3. เช็คว่าอยู่ในเทอมไหม
+                const inTerm = isDateInActiveTerm(dateStr);
+                
+                // คลาสของเซลล์
+                let cellClasses = "calendar-cell flex flex-col relative group transition";
+                if(!inTerm) {
+                    cellClasses += " out-of-term";
+                } else if(isHoliday) {
+                    cellClasses += " holiday cursor-pointer hover:bg-rose-50";
+                } else {
+                    cellClasses += " cursor-pointer hover:bg-slate-50";
+                }
+
+                // การแสดงผลป้ายต่างๆ
+                let badgesHTML = '';
+                
+                if (holidayName) {
+                    badgesHTML += `<div class="holiday-badge" title="${holidayName}">${holidayName}</div>`;
+                }
+
+                // 4. วิเคราะห์การนัดหมาย (คำนวณเฉพาะวันที่อยู่ในเทอม และไม่ใช่วันหยุดเต็มวัน - แต่ถ้ามีข้อมูลนัดก็แสดง)
+                const availabilityInfo = analyzeGroupAvailability(dateStr);
+                
+                if (inTerm) {
+                    if (availabilityInfo.matchMorning) badgesHTML += `<div class="mt-1 text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">✨ ว่าง: เช้า</div>`;
+                    if (availabilityInfo.matchAfternoon) badgesHTML += `<div class="mt-1 text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">✨ ว่าง: บ่าย</div>`;
+                    if (availabilityInfo.matchEvening) badgesHTML += `<div class="mt-1 text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">✨ ว่าง: เย็น</div>`;
+
+                    if (!availabilityInfo.matchMorning && !availabilityInfo.matchAfternoon && !availabilityInfo.matchEvening && availabilityInfo.hasSomeFree) {
+                        badgesHTML += `<div class="mt-1 text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded border border-amber-200">ว่างบางคน</div>`;
+                    }
+                    if (availabilityInfo.allBusy) {
+                        badgesHTML += `<div class="mt-1 text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded border border-rose-200">❌ ไม่ว่างทั้งหมด</div>`;
+                    }
+                }
+
+                // วันที่ (แดงถ้าเป็นวันหยุด)
+                const dateColor = isHoliday ? "text-rose-600" : "text-slate-700";
+
+                grid.innerHTML += `
+                    <div class="${cellClasses}" onclick="handleClickDate('${dateStr}', ${inTerm})">
+                        <span class="font-bold ${dateColor}">${day}</span>
+                        <div class="flex flex-col gap-0.5 mt-1 flex-1 overflow-y-auto hide-scrollbar">
+                            ${badgesHTML}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function analyzeGroupAvailability(dateStr) {
+            const dayRecords = schedules.filter(s => s.date === dateStr);
+            let busyMorning = new Set(), busyAfternoon = new Set(), busyEvening = new Set();
+            let freePeople = new Set();
+
+            dayRecords.forEach(record => {
+                if(record.status === 'busy') {
+                    if(record.slot === 'Morning' || record.slot === 'AllDay') busyMorning.add(record.name);
+                    if(record.slot === 'Afternoon' || record.slot === 'AllDay') busyAfternoon.add(record.name);
+                    if(record.slot === 'Evening' || record.slot === 'AllDay') busyEvening.add(record.name);
+                } else {
+                    freePeople.add(record.name);
+                }
+            });
+
+            // ตรวจสอบ
+            const totalRecords = dayRecords.length;
+            const matchMorning = busyMorning.size === 0 && totalRecords > 0;
+            const matchAfternoon = busyAfternoon.size === 0 && totalRecords > 0;
+            const matchEvening = busyEvening.size === 0 && totalRecords > 0;
+            const allBusy = busyMorning.size >= groupMembers.length || busyAfternoon.size >= groupMembers.length || busyEvening.size >= groupMembers.length;
+            const hasSomeFree = freePeople.size > 0 || (totalRecords > 0 && !matchMorning && !matchAfternoon && !matchEvening && !allBusy);
+
+            return { matchMorning, matchAfternoon, matchEvening, hasSomeFree, allBusy };
+        }
+
+        function handleClickDate(dateStr, inTerm) {
+            if(!inTerm) {
+                alert("ไม่อยู่ในช่วงเปิดเทอมที่ตั้งค่าไว้");
+                return;
+            }
+            // ส่งค่าไปยังฟอร์มอัปเดต
+            document.getElementById('eventDate').value = dateStr;
+            switchTab('update-tab');
+        }
+
+        // --- 7. Form Manual Update ---
+        document.getElementById('eventDate').value = new Date().toISOString().split('T')[0];
+
+        function toggleTimeSlots() {
+            const isAllDay = document.getElementById('allDayCheck').checked;
+            const slots = document.querySelectorAll('input[name="timeSlot"]');
+            slots.forEach(slot => {
+                slot.disabled = isAllDay;
+                if(isAllDay) slot.checked = false;
+            });
+            document.getElementById('slotContainer').style.opacity = isAllDay ? '0.5' : '1';
+        }
+
+        function handleManualSave(e) {
+            e.preventDefault();
+            const date = document.getElementById('eventDate').value;
+            
+            if(!isDateInActiveTerm(date)) {
+                return alert("วันที่เลือกไม่ได้อยู่ในช่วงเปิดเทอมที่ตั้งค่าไว้ กรุณาตรวจสอบการตั้งค่าเทอม");
+            }
+
+            const name = document.getElementById('userName').value || 'คุณ';
+            const status = document.querySelector('input[name="statusType"]:checked').value;
+            const detail = document.getElementById('statusDetail').value;
+            const isAllDay = document.getElementById('allDayCheck').checked;
+
+            let selectedSlots = [];
+            if (isAllDay) {
+                selectedSlots = ['AllDay'];
+            } else {
+                document.querySelectorAll('input[name="timeSlot"]:checked').forEach(el => selectedSlots.push(el.value));
+            }
+
+            if(selectedSlots.length === 0) return alert("กรุณาเลือกช่วงเวลาอย่างน้อย 1 ช่วง หรือเลือกทั้งวัน");
+
+            selectedSlots.forEach(slot => {
+                schedules.push({ id: Date.now()+Math.random(), name, date, slot, status, detail });
+            });
+
+            localStorage.setItem('unispace_schedules', JSON.stringify(schedules));
+            alert('บันทึกข้อมูลเรียบร้อย!');
+            
+            // ล้างฟอร์ม
+            document.querySelectorAll('input[name="timeSlot"]').forEach(el => el.checked = false);
+            document.getElementById('allDayCheck').checked = false;
+            document.getElementById('statusDetail').value = '';
+            toggleTimeSlots();
+        }
+
+        // --- 8. AI OCR Logic (ย่อส่วนจากเวอร์ชันเต็มเพื่อประหยัดพื้นที่) ---
+        // ฟังก์ชันสแกนรูปทำงานเหมือนเดิม โดยจะเช็ค isDateInActiveTerm ก่อนเซฟ
+        async function previewAndScanImage(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('uploadPlaceholder').classList.add('hidden');
+                document.getElementById('imagePreview').src = e.target.result;
+                document.getElementById('imagePreview').classList.remove('hidden');
+            }
+            reader.readAsDataURL(file);
+
+            const statusBox = document.getElementById('scanStatus');
+            const resultArea = document.getElementById('scanResultArea');
+            statusBox.classList.remove('hidden', 'bg-emerald-100', 'text-emerald-800');
+            statusBox.classList.add('bg-indigo-100', 'text-indigo-800');
+            document.getElementById('scanIcon').className = "fa-solid fa-spinner fa-spin mr-2";
+            document.getElementById('scanText').textContent = "AI กำลังอ่านภาพ... (อาจใช้เวลา 5-10 วินาที)";
+            resultArea.classList.add('hidden');
+
+            try {
+                const result = await Tesseract.recognize(file, 'tha+eng');
+                parseExtractedText(result.data.text);
+            } catch (error) {
+                statusBox.classList.replace('bg-indigo-100', 'bg-rose-100');
+                statusBox.classList.replace('text-indigo-800', 'text-rose-800');
+                document.getElementById('scanIcon').className = "fa-solid fa-triangle-exclamation mr-2";
+                document.getElementById('scanText').textContent = "เกิดข้อผิดพลาดในการสแกน";
+            }
+        }
+
+        function parseExtractedText(rawText) {
+            scannedDataTemp = [];
+            const regex = /(จ|อ|พฤ|พ|ศ|ส|อา)\s*(\d+)\s*-\s*(\d+)/g;
+            let match;
+            const today = new Date();
+            const currentDay = today.getDay();
+
+            // สมมติว่าเราเริ่มรันตารางจากวันจันทร์แรกของเทอมปัจจุบัน
+            const activeObj = termSettings[termSettings.active];
+            let baseDate = new Date();
+            if(activeObj.start) {
+                baseDate = new Date(activeObj.start);
+            }
+
+            while ((match = regex.exec(rawText)) !== null) {
+                const dayAbbr = match[1];
+                const startPeriod = parseInt(match[2]);
+                const endPeriod = parseInt(match[3]);
+
+                const dayMap = { 'อา':0, 'จ':1, 'อ':2, 'พ':3, 'พฤ':4, 'ศ':5, 'ส':6 };
+                const targetDayIndex = dayMap[dayAbbr];
+                
+                // คำนวณหาวันที่ (เวอร์ชันจริงต้องวนลูปสร้างตารางลงไปทุกสัปดาห์ตลอดเทอม)
+                // สำหรับเดโม่นี้ จะจำลองลงเฉพาะสัปดาห์แรกของเทอม
+                let classDate = new Date(baseDate);
+                const diff = targetDayIndex - baseDate.getDay();
+                classDate.setDate(baseDate.getDate() + (diff >= 0 ? diff : 7 + diff));
+                
+                const dateString = classDate.toISOString().split('T')[0];
+
+                let slot = '', slotLabel = '';
+                if(endPeriod <= 5) { slot = 'Morning'; slotLabel = 'เช้า'; }
+                else if (startPeriod >= 9) { slot = 'Evening'; slotLabel = 'เย็น'; }
+                else { slot = 'Afternoon'; slotLabel = 'บ่าย'; }
+
+                scannedDataTemp.push({
+                    date: dateString,
+                    slot: slot,
+                    slotLabel: slotLabel,
+                    raw: match[0],
+                });
+            }
+
+            document.getElementById('scanStatus').classList.replace('bg-indigo-100', 'bg-emerald-100');
+            document.getElementById('scanStatus').classList.replace('text-indigo-800', 'text-emerald-800');
+            document.getElementById('scanIcon').className = "fa-solid fa-check-circle mr-2";
+
+            const listEl = document.getElementById('parsedItemsList');
+            if (scannedDataTemp.length > 0) {
+                document.getElementById('scanText').textContent = `สแกนสำเร็จ! พบ ${scannedDataTemp.length} รายการ`;
+                listEl.innerHTML = scannedDataTemp.map(item => `
+                    <div class="p-2 bg-slate-50 border rounded text-sm">
+                        <span class="font-bold text-indigo-700">${item.raw}</span> -> เลือกลงวันที่ ${item.date} (${item.slotLabel})
+                    </div>
+                `).join('');
+                document.getElementById('scanResultArea').classList.remove('hidden');
+            } else {
+                document.getElementById('scanText').textContent = "ไม่พบรูปแบบตาราง (เช่น พ2-5)";
+            }
+        }
+
+        function saveScannedItems() {
+            const name = document.getElementById('userName').value || 'คุณ (สแกน)';
+            let savedCount = 0;
+
+            scannedDataTemp.forEach(item => {
+                if(isDateInActiveTerm(item.date)) {
+                    schedules.push({
+                        id: Date.now() + Math.random(),
+                        name: name,
+                        date: item.date,
+                        slot: item.slot,
+                        status: 'busy',
+                        detail: 'ลงจากตารางเรียน'
+                    });
+                    savedCount++;
+                }
+            });
+
+            localStorage.setItem('unispace_schedules', JSON.stringify(schedules));
+            alert(`บันทึกตารางเรียนลงปฏิทินสำเร็จ ${savedCount} รายการ (ข้ามวันที่อยู่นอกเทอม)`);
+            
+            document.getElementById('scanResultArea').classList.add('hidden');
+            document.getElementById('scanStatus').classList.add('hidden');
+            scannedDataTemp = [];
+        }
+
+        // Initialize App on load
+        initApp();
+    </script>
+</body>
+</html>
