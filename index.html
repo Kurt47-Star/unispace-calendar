@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UniSpace - ระบบเวลาว่างเพื่อนทั้งสาขา (รองรับ Section)</title>
+    <title>UniSpace - ระบบเวลาว่างเพื่อนทั้งสาขา (รองรับ Section & ไฟล์ Excel)</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Prompt Font -->
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- PapaParse สำหรับอ่านไฟล์ CSV -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- SheetJS (xlsx) สำหรับอ่านไฟล์ Excel และ CSV -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <!-- Firebase SDK (v10) -->
     <script type="module">
@@ -69,7 +69,7 @@
                 <i class="fa-solid fa-users-rectangle text-3xl"></i>
                 <div>
                     <h1 class="text-xl font-bold">UniSpace Heatmap</h1>
-                    <p class="text-xs text-indigo-200">ระบบเช็กเวลาว่างสาขา (แบ่ง Section 1 & 2)</p>
+                    <p class="text-xs text-indigo-200">ระบบเช็กเวลาว่างสาขา (รองรับ Section & ไฟล์ Excel)</p>
                 </div>
             </div>
             <nav class="flex bg-indigo-700/60 p-1 rounded-lg text-sm font-medium overflow-x-auto w-full md:w-auto">
@@ -80,7 +80,7 @@
                     <i class="fa-solid fa-user-pen mr-1"></i> ลงเวลาตาราง
                 </button>
                 <button onclick="switchTab('settings-tab')" id="nav-settings-tab" class="tab-btn px-3 md:px-4 py-2 rounded-md transition text-indigo-100 hover:text-white whitespace-nowrap">
-                    <i class="fa-solid fa-gear mr-1"></i> ตั้งค่าไฟล์ CSV รายชื่อ
+                    <i class="fa-solid fa-gear mr-1"></i> ตั้งค่าไฟล์ Excel รายชื่อ
                 </button>
             </nav>
         </div>
@@ -238,22 +238,22 @@
             </div>
         </section>
 
-        <!-- TAB 3: ตั้งค่าไฟล์ CSV รายชื่อ -->
+        <!-- TAB 3: ตั้งค่าไฟล์ Excel รายชื่อ -->
         <section id="settings-tab" class="tab-content hidden space-y-6">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 max-w-2xl mx-auto">
                 <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center border-b pb-4">
-                    <i class="fa-solid fa-file-csv text-indigo-600 mr-2"></i> อัปโหลดไฟล์ CSV รายชื่อเพื่อน
+                    <i class="fa-solid fa-file-excel text-emerald-600 mr-2"></i> อัปโหลดไฟล์ Excel รายชื่อเพื่อน
                 </h2>
                 
                 <p class="text-xs text-slate-600 mb-4">
-                    รองรับไฟล์ <b>.csv</b> ที่มีหัวคอลัมน์ชื่อ <code>Section</code>, <code>ชื่อ-สกุล</code>, และ <code>ชื่อเล่น</code>
+                    รองรับไฟล์ <b>.xlsx</b> หรือ <b>.xls</b> ที่มีหัวคอลัมน์ชื่อ <code>Section</code>, <code>ชื่อ-สกุล</code> (หรือ <code>ชื่อ</code>), และ <code>ชื่อเล่น</code>
                 </p>
 
                 <!-- Box Upload -->
-                <div class="border-2 border-dashed border-indigo-200 rounded-xl p-6 text-center hover:bg-indigo-50/50 transition cursor-pointer relative mb-6">
-                    <input type="file" id="studentCsvFile" accept=".csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleStudentFileUpload(event)">
-                    <i class="fa-solid fa-file-csv text-4xl text-emerald-600 mb-2"></i>
-                    <p class="text-sm font-bold text-indigo-700">คลิกเพื่อเลือกไฟล์ CSV รายชื่อเพื่อนทั้งสาขา</p>
+                <div class="border-2 border-dashed border-emerald-200 rounded-xl p-6 text-center hover:bg-emerald-50/50 transition cursor-pointer relative mb-6">
+                    <input type="file" id="studentExcelFile" accept=".xlsx, .xls" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleStudentExcelUpload(event)">
+                    <i class="fa-solid fa-file-excel text-4xl text-emerald-600 mb-2"></i>
+                    <p class="text-sm font-bold text-emerald-700">คลิกเพื่อเลือกไฟล์ Excel รายชื่อเพื่อนทั้งสาขา</p>
                     <p class="text-xs text-slate-400 mt-1">อัปโหลดครั้งเดียว ข้อมูลจะซิงค์ออนไลน์กับเพื่อนทุกคนทันที</p>
                 </div>
 
@@ -512,23 +512,33 @@
             document.getElementById('dayDetailBox').scrollIntoView({ behavior: 'smooth' });
         }
 
-        // --- ระบบอัปโหลดไฟล์ CSV ---
-        function handleStudentFileUpload(e) {
+        // --- ระบบอัปโหลดไฟล์ Excel (.xlsx, .xls) ---
+        function handleStudentExcelUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            Papa.parse(file, {
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
                     const parsedList = [];
-                    results.data.forEach(row => {
-                        const section = row['Section'] || row['section'] || row['sec'] || '1';
+                    json.forEach(row => {
+                        // รองรับชื่อหัวคอลัมน์หลากหลายรูปแบบ
+                        const section = row['Section'] || row['section'] || row['sec'] || row['เซค'] || '1';
                         const name = row['ชื่อ-สกุล'] || row['ชื่อสกุล'] || row['ชื่อ'] || row['name'] || '';
                         const nickname = row['ชื่อเล่น'] || row['nickname'] || '';
                         
-                        if(name.trim()) {
-                            parsedList.push({ section: String(section).trim(), name: name.trim(), nickname: nickname.trim() });
+                        if(String(name).trim()) {
+                            parsedList.push({ 
+                                section: String(section).trim(), 
+                                name: String(name).trim(), 
+                                nickname: String(nickname).trim() 
+                            });
                         }
                     });
 
@@ -541,12 +551,16 @@
                         }
                         
                         updateStudentUI();
-                        alert(`นำเข้าข้อมูลรายชื่อจากไฟล์ CSV สำเร็จทั้งหมด ${students.length} คน!`);
+                        alert(`นำเข้าข้อมูลรายชื่อจากไฟล์ Excel สำเร็จทั้งหมด ${students.length} คน!`);
                     } else {
                         alert("ไม่พบข้อมูลในไฟล์ กรุณาตรวจสอบหัวคอลัมน์ ต้องมีคำว่า 'Section', 'ชื่อ-สกุล', และ 'ชื่อเล่น'");
                     }
+                } catch (err) {
+                    console.error(err);
+                    alert("เกิดข้อผิดพลาดในการอ่านไฟล์ Excel กรุณาตรวจสอบรูปแบบไฟล์");
                 }
-            });
+            };
+            reader.readAsArrayBuffer(file);
         }
 
         function resetDefaultStudents() {
