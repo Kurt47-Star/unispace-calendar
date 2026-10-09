@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UniSpace - ระบบเวลาว่างเพื่อนทั้งสาขา (30+ คน)</title>
+    <title>UniSpace - ระบบเวลาว่างเพื่อนทั้งสาขา (รองรับ Section)</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Prompt Font -->
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- PapaParse สำหรับอ่านไฟล์ CSV / Excel -->
+    <!-- PapaParse สำหรับอ่านไฟล์ CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <!-- Firebase SDK (v10) -->
@@ -49,12 +49,12 @@
         .calendar-cell.inactive { background-color: #f8fafc; color: #cbd5e1; cursor: default; }
         .calendar-cell.inactive:hover { transform: none; box-shadow: none; }
         
-        /* เฉดสี Heatmap บอกระดับคนว่าง */
+        /* เฉดสี Heatmap */
         .heat-empty { background-color: #ffffff; border: 1px solid #e2e8f0; color: #334155; }
-        .heat-low { background-color: #fef2f2; border: 1px solid #fecaca; color: #991b1b; } /* ว่างน้อย <40% */
-        .heat-mid { background-color: #fef9c3; border: 1px solid #fef08a; color: #854d0e; } /* ว่างปานกลาง 40-75% */
-        .heat-high { background-color: #dcfce7; border: 1px solid #bbf7d0; color: #166534; } /* ว่างมาก >75% */
-        .heat-perfect { background-color: #22c55e; border: 1px solid #16a34a; color: #ffffff; font-weight: bold; } /* ว่าง 100% */
+        .heat-low { background-color: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+        .heat-mid { background-color: #fef9c3; border: 1px solid #fef08a; color: #854d0e; }
+        .heat-high { background-color: #dcfce7; border: 1px solid #bbf7d0; color: #166534; }
+        .heat-perfect { background-color: #22c55e; border: 1px solid #16a34a; color: #ffffff; font-weight: bold; }
         .heat-holiday { background-color: #fff1f2; border: 1px solid #ffe4e6; }
 
         .badge-holiday { background: #ffe4e6; color: #e11d48; font-size: 0.6rem; padding: 1px 3px; border-radius: 4px; display: block; text-align: center; }
@@ -69,7 +69,7 @@
                 <i class="fa-solid fa-users-rectangle text-3xl"></i>
                 <div>
                     <h1 class="text-xl font-bold">UniSpace Heatmap</h1>
-                    <p class="text-xs text-indigo-200">ระบบเช็กเวลาว่างสาขา (รองรับ 30+ คน)</p>
+                    <p class="text-xs text-indigo-200">ระบบเช็กเวลาว่างสาขา (แบ่ง Section 1 & 2)</p>
                 </div>
             </div>
             <nav class="flex bg-indigo-700/60 p-1 rounded-lg text-sm font-medium overflow-x-auto w-full md:w-auto">
@@ -80,7 +80,7 @@
                     <i class="fa-solid fa-user-pen mr-1"></i> ลงเวลาตาราง
                 </button>
                 <button onclick="switchTab('settings-tab')" id="nav-settings-tab" class="tab-btn px-3 md:px-4 py-2 rounded-md transition text-indigo-100 hover:text-white whitespace-nowrap">
-                    <i class="fa-solid fa-gear mr-1"></i> ตั้งค่าสาขา & ไฟล์รายชื่อ
+                    <i class="fa-solid fa-gear mr-1"></i> ตั้งค่าไฟล์ CSV รายชื่อ
                 </button>
             </nav>
         </div>
@@ -88,15 +88,18 @@
 
     <main class="max-w-7xl mx-auto px-4 py-6">
 
-        <!-- TAB 1: ปฏิทินกลุ่มแบบ Heatmap -->
+        <!-- TAB 1: ปฏิทิน Heatmap -->
         <section id="calendar-tab" class="tab-content block space-y-6">
             
-            <!-- การเลือกเดือน และปี -->
             <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                <!-- ตัวกรอง Section -->
                 <div class="flex items-center gap-2">
-                    <span class="text-xs bg-indigo-100 text-indigo-800 font-bold px-3 py-1 rounded-full">
-                        <i class="fa-solid fa-users mr-1"></i> สมาชิกในสาขา: <span id="totalStudentsDisplay">30</span> คน
-                    </span>
+                    <span class="text-xs font-bold text-slate-500">แสดงกลุ่ม:</span>
+                    <div class="bg-slate-100 p-1 rounded-lg flex text-xs font-bold">
+                        <button onclick="filterSection('all')" id="btnSecAll" class="px-3 py-1.5 rounded-md bg-white text-indigo-700 shadow">ทั้งหมด (<span class="totalCountSpan">0</span>)</button>
+                        <button onclick="filterSection('1')" id="btnSec1" class="px-3 py-1.5 rounded-md text-slate-600 hover:text-indigo-700">Sec 1 (<span id="sec1CountSpan">0</span>)</button>
+                        <button onclick="filterSection('2')" id="btnSec2" class="px-3 py-1.5 rounded-md text-slate-600 hover:text-indigo-700">Sec 2 (<span id="sec2CountSpan">0</span>)</button>
+                    </div>
                 </div>
 
                 <!-- ตัวเลือกเปลี่ยน เดือน/ปี -->
@@ -121,18 +124,17 @@
             <div id="topRecommendationBox" class="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl p-5 text-white shadow-md flex items-center justify-between">
                 <div>
                     <span class="bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider mb-1 inline-block">Best Time Recommendation</span>
-                    <h2 class="text-xl md:text-2xl font-bold" id="recDateText">กำลังวิเคราะห์ข้อมูลเวลา...</h2>
+                    <h2 class="text-xl md:text-2xl font-bold" id="recDateText">กำลังวิเคราะห์ข้อมูล...</h2>
                     <p class="text-xs text-emerald-100 mt-1" id="recSubText">ระบบกำลังคำนวณวันที่มีสมาชิกว่างตรงกันมากที่สุดในเดือนนี้</p>
                 </div>
                 <div class="text-center bg-white text-emerald-700 rounded-lg p-3 min-w-[90px] shadow">
-                    <div class="text-2xl md:text-3xl font-bold" id="recCountText">0<span class="text-xs text-emerald-400">/<span class="totalCountSpan">30</span></span></div>
+                    <div class="text-2xl md:text-3xl font-bold" id="recCountText">0<span class="text-xs text-emerald-400">/<span id="activeGroupCountSpan">0</span></span></div>
                     <div class="text-[10px] font-semibold text-slate-500">คนว่าง</div>
                 </div>
             </div>
 
-            <!-- แผนที่ความร้อน Heatmap ปฏิทิน -->
+            <!-- ปฏิทิน Heatmap -->
             <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200">
-                <!-- คำอธิบายแถบสี Heatmap -->
                 <div class="flex flex-wrap gap-3 mb-4 text-xs font-medium border-b pb-3 justify-between items-center">
                     <span class="font-bold text-slate-700">สัญลักษณ์ระดับคนว่าง:</span>
                     <div class="flex flex-wrap gap-2 text-[11px]">
@@ -144,7 +146,6 @@
                     </div>
                 </div>
 
-                <!-- Calendar Header -->
                 <div class="grid grid-cols-7 gap-1 text-center text-xs md:text-sm font-bold py-2 text-slate-600">
                     <div class="text-rose-500">อา.</div><div>จ.</div><div>อ.</div><div>พ.</div><div>พฤ.</div><div>ศ.</div><div class="text-rose-500">ส.</div>
                 </div>
@@ -155,12 +156,10 @@
             <div id="dayDetailBox" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hidden">
                 <div class="flex justify-between items-center mb-4 border-b pb-3">
                     <h3 class="font-bold text-lg text-slate-800" id="selectedDateTitle">รายละเอียดวันที่...</h3>
-                    <span class="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-medium">สมาชิกรวม: <span class="totalCountSpan">30</span> คน</span>
+                    <span class="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-medium">สมาชิกกลุ่มที่เลือก: <span id="selectedGroupCountDisplay">0</span> คน</span>
                 </div>
 
-                <div class="space-y-4" id="slotDetailProgressBars">
-                    <!-- JS จะมาเรนเดอร์ Progress bar เช้า/บ่าย/เย็น ตรงนี้ -->
-                </div>
+                <div class="space-y-4" id="slotDetailProgressBars"></div>
             </div>
 
         </section>
@@ -239,57 +238,53 @@
             </div>
         </section>
 
-        <!-- TAB 3: ตั้งค่าสาขา & อัปโหลดรายชื่อเพื่อน -->
+        <!-- TAB 3: ตั้งค่าไฟล์ CSV รายชื่อ -->
         <section id="settings-tab" class="tab-content hidden space-y-6">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 max-w-2xl mx-auto">
                 <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center border-b pb-4">
-                    <i class="fa-solid fa-file-csv text-indigo-600 mr-2"></i> อัปโหลดรายชื่อเพื่อนทั้งสาขา (Excel / CSV)
+                    <i class="fa-solid fa-file-csv text-indigo-600 mr-2"></i> อัปโหลดไฟล์ CSV รายชื่อเพื่อน
                 </h2>
                 
                 <p class="text-xs text-slate-600 mb-4">
-                    รองรับไฟล์ <b>.csv</b> หรือ <b>.xlsx</b> ที่มีหัวคอลัมน์ชื่อ <code>ชื่อจริง</code>, <code>นามสกุล</code>, <code>ชื่อเล่น</code>
+                    รองรับไฟล์ <b>.csv</b> ที่มีหัวคอลัมน์ชื่อ <code>Section</code>, <code>ชื่อ-สกุล</code>, และ <code>ชื่อเล่น</code>
                 </p>
 
                 <!-- Box Upload -->
                 <div class="border-2 border-dashed border-indigo-200 rounded-xl p-6 text-center hover:bg-indigo-50/50 transition cursor-pointer relative mb-6">
-                    <input type="file" id="studentCsvFile" accept=".csv, .xlsx, .xls" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleStudentFileUpload(event)">
-                    <i class="fa-solid fa-file-excel text-4xl text-emerald-600 mb-2"></i>
-                    <p class="text-sm font-bold text-indigo-700">คลิกเพื่อเลือกไฟล์รายชื่อเพื่อนทั้งสาขา</p>
-                    <p class="text-xs text-slate-400 mt-1">อัปโหลดครั้งเดียว ข้อมูลรายชื่อจะซิงค์กับเพื่อนทุกคนทันที</p>
+                    <input type="file" id="studentCsvFile" accept=".csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleStudentFileUpload(event)">
+                    <i class="fa-solid fa-file-csv text-4xl text-emerald-600 mb-2"></i>
+                    <p class="text-sm font-bold text-indigo-700">คลิกเพื่อเลือกไฟล์ CSV รายชื่อเพื่อนทั้งสาขา</p>
+                    <p class="text-xs text-slate-400 mt-1">อัปโหลดครั้งเดียว ข้อมูลจะซิงค์ออนไลน์กับเพื่อนทุกคนทันที</p>
                 </div>
 
                 <!-- รายชื่อปัจจุบัน -->
                 <div>
                     <h3 class="font-bold text-slate-700 text-sm mb-2 flex justify-between items-center">
-                        <span>รายชื่อในระบบขณะนี้ (<span class="totalCountSpan">30</span> คน)</span>
+                        <span>รายชื่อในระบบขณะนี้ (<span class="totalCountSpan">0</span> คน)</span>
                         <button onclick="resetDefaultStudents()" class="text-xs text-rose-600 hover:underline">รีเซ็ตเป็นค่าเริ่มต้น</button>
                     </h3>
-                    <div id="studentListContainer" class="bg-slate-50 p-3 rounded-lg border max-h-60 overflow-y-auto text-xs grid grid-cols-2 gap-2">
-                        <!-- JS จะเรนเดอร์รายชื่อตรงนี้ -->
-                    </div>
+                    <div id="studentListContainer" class="bg-slate-50 p-3 rounded-lg border max-h-60 overflow-y-auto text-xs grid grid-cols-2 gap-2"></div>
                 </div>
             </div>
         </section>
 
     </main>
 
-    <!-- JavaScript LOGIC -->
+    <!-- App Logic -->
     <script>
-        // รายชื่อเริ่มต้นตัวอย่าง (ถ้ายังไม่เคยอัปโหลดไฟล์)
+        // รายชื่อตัวอย่างเริ่มต้น (รองรับ 2 Section)
         const defaultStudents = [
-            { firstName: "วัชรพงษ์", lastName: "ใจดี", nickname: "นิว" },
-            { firstName: "กนกวรรณ", lastName: "สุขสันต์", nickname: "กิ๊ฟ" },
-            { firstName: "ณัฐพงษ์", lastName: "สมบูรณ์", nickname: "นัท" },
-            { firstName: "ชลธิชา", lastName: "เจริญ", nickname: "มายด์" },
-            { firstName: "ปิยพงษ์", lastName: "มีสุข", nickname: "บอส" }
+            { section: "1", name: "นายวัชรพงษ์ ใจดี", nickname: "นิว" },
+            { section: "1", name: "นางสาวกนกวรรณ สุขสันต์", nickname: "กิ๊ฟ" },
+            { section: "2", name: "นายณัฐพงษ์ สมบูรณ์", nickname: "นัท" },
+            { section: "2", name: "นางสาวชลธิชา เจริญ", nickname: "มายด์" }
         ];
 
         let students = JSON.parse(localStorage.getItem('unispace_students')) || defaultStudents;
+        let selectedSection = "all";
         let schedules = [];
-        let currentDate = new Date(); // วันปัจจุบัน
-        let selectedDateStr = null;
+        let currentDate = new Date();
 
-        // ดึงวันหยุดไทยสำคัญ
         let thaiHolidays = {
             "2026-01-01": "วันขึ้นปีใหม่", "2026-04-13": "วันสงกรานต์", "2026-04-14": "วันสงกรานต์",
             "2026-04-15": "วันสงกรานต์", "2026-05-01": "วันแรงงาน", "2026-07-28": "วันเฉลิมฯ ร.10",
@@ -297,18 +292,15 @@
             "2026-12-05": "วันพ่อแห่งชาติ", "2026-12-31": "วันสิ้นปี"
         };
 
-        // ฟังการอัปเดตข้อมูลจาก Firebase
         function listenToFirebase() {
             if(!window.db) { setTimeout(listenToFirebase, 500); return; }
 
-            // ฟังตารางเวลา
             window.onSnapshot(window.collection(window.db, "schedules"), (snapshot) => {
                 schedules = [];
                 snapshot.forEach((doc) => schedules.push({ firestoreId: doc.id, ...doc.data() }));
                 renderCalendar();
             });
 
-            // ฟังรายชื่อนักเรียนส่วนกลาง
             window.onSnapshot(window.collection(window.db, "settings"), (snapshot) => {
                 snapshot.forEach((doc) => {
                     if(doc.id === "students_list" && doc.data().list) {
@@ -330,7 +322,6 @@
             document.getElementById('endDate').value = todayStr;
         }
 
-        // สลับหน้าแท็บ
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(btn => btn.className = "tab-btn px-3 md:px-4 py-2 rounded-md transition text-indigo-100 hover:text-white whitespace-nowrap");
@@ -341,7 +332,26 @@
             if(tabId === 'calendar-tab') renderCalendar();
         }
 
-        // --- ระบบอัปเดตเดือน และปี ---
+        function filterSection(sec) {
+            selectedSection = sec;
+            
+            ['all', '1', '2'].forEach(s => {
+                const btn = document.getElementById(`btnSec${s === 'all' ? 'All' : s}`);
+                if(s === sec) {
+                    btn.className = "px-3 py-1.5 rounded-md bg-white text-indigo-700 shadow font-bold";
+                } else {
+                    btn.className = "px-3 py-1.5 rounded-md text-slate-600 hover:text-indigo-700 font-bold";
+                }
+            });
+
+            renderCalendar();
+        }
+
+        function getActiveStudents() {
+            if(selectedSection === "all") return students;
+            return students.filter(s => String(s.section).trim() === selectedSection);
+        }
+
         function updateMonthYearPickerUI() {
             document.getElementById('monthSelect').value = currentDate.getMonth();
             document.getElementById('yearInput').value = currentDate.getFullYear();
@@ -366,7 +376,6 @@
             renderCalendar();
         }
 
-        // --- ระบบคำนวณปฏิทิน Heatmap ---
         function renderCalendar() {
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
@@ -380,6 +389,9 @@
                 grid.innerHTML += `<div class="calendar-cell inactive"></div>`;
             }
 
+            const activeStudents = getActiveStudents();
+            document.getElementById('activeGroupCountSpan').textContent = activeStudents.length;
+
             let bestDayInMonth = null;
             let maxFreeInMonth = -1;
 
@@ -389,21 +401,18 @@
                 const isWeekend = (currentDayOfWeek === 0 || currentDayOfWeek === 6);
                 const holidayName = thaiHolidays[dateStr];
 
-                // คำนวณจำนวนคนว่างของวันนั้น
-                const stats = calculateDayStats(dateStr);
+                const stats = calculateDayStats(dateStr, activeStudents);
                 const maxSlotFree = Math.max(stats.morningFree, stats.afternoonFree, stats.eveningFree);
-                const freeRatio = maxSlotFree / students.length;
+                const freeRatio = activeStudents.length > 0 ? (maxSlotFree / activeStudents.length) : 0;
 
-                // หาวันที่คนว่างเยอะที่สุดในเดือน
-                if(freeRatio > maxFreeInMonth && !isWeekend && !holidayName) {
+                if(freeRatio > maxFreeInMonth && !isWeekend && !holidayName && activeStudents.length > 0) {
                     maxFreeInMonth = freeRatio;
                     bestDayInMonth = { dateStr, day, freeCount: maxSlotFree };
                 }
 
-                // กำหนดคลาสสี Heatmap
                 let heatClass = "heat-empty";
                 if (holidayName || isWeekend) heatClass = "heat-holiday";
-                else if (freeRatio >= 1) heatClass = "heat-perfect";
+                else if (freeRatio >= 1 && activeStudents.length > 0) heatClass = "heat-perfect";
                 else if (freeRatio >= 0.75) heatClass = "heat-high";
                 else if (freeRatio >= 0.40) heatClass = "heat-mid";
                 else if (freeRatio > 0) heatClass = "heat-low";
@@ -414,59 +423,69 @@
                     <div class="calendar-cell ${heatClass}" onclick="showDayDetail('${dateStr}')">
                         <div class="flex justify-between items-start">
                             <span class="font-bold ${isWeekend || holidayName ? 'text-rose-600' : ''}">${day}</span>
-                            <span class="text-[9px] opacity-75">${maxSlotFree}/${students.length}</span>
+                            <span class="text-[9px] opacity-75">${maxSlotFree}/${activeStudents.length}</span>
                         </div>
                         <div class="mt-1">${holidayHtml}</div>
                     </div>
                 `;
             }
 
-            // แสดงคำแนะนำ Best Recommendation Box
             if(bestDayInMonth && maxFreeInMonth > 0) {
                 const monthTh = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."][month];
                 document.getElementById('recDateText').textContent = `วันที่ ${bestDayInMonth.day} ${monthTh} ${year}`;
-                document.getElementById('recSubText').textContent = `มีคนว่างตรงกันสูงสุดในเดือนนี้ (${bestDayInMonth.freeCount} จาก ${students.length} คน)`;
-                document.getElementById('recCountText').innerHTML = `${bestDayInMonth.freeCount}<span class="text-xs text-emerald-300">/${students.length}</span>`;
+                document.getElementById('recSubText').textContent = `มีสมาชิกในกลุ่มที่เลือกว่างตรงกันสูงสุด (${bestDayInMonth.freeCount} จาก ${activeStudents.length} คน)`;
+                document.getElementById('recCountText').innerHTML = `${bestDayInMonth.freeCount}<span class="text-xs text-emerald-300">/${activeStudents.length}</span>`;
             } else {
-                document.getElementById('recDateText').textContent = `ยังไม่มีข้อมูลตารางในเดือนนี้`;
-                document.getElementById('recSubText').textContent = `เชิญชวนให้เพื่อนๆ เข้ามากรอกเวลาว่าง`;
-                document.getElementById('recCountText').innerHTML = `0<span class="text-xs text-emerald-300">/${students.length}</span>`;
+                document.getElementById('recDateText').textContent = `ยังไม่มีข้อมูลเวลาว่างในเดือนนี้`;
+                document.getElementById('recSubText').textContent = `โปรดเลือกเดือนอื่น หรือเชิญชวนเพื่อนๆ เข้ามากรอกตาราง`;
+                document.getElementById('recCountText').innerHTML = `0<span class="text-xs text-emerald-300">/${activeStudents.length}</span>`;
             }
         }
 
-        // คำนวณความว่างในแต่ละช่วงเวลา
-        function calculateDayStats(dateStr) {
-            const dayRecords = schedules.filter(s => s.date === dateStr);
+        function calculateDayStats(dateStr, activeStudents) {
+            const activeNames = new Set(activeStudents.map(s => `${s.name} (${s.nickname||''})`.trim()));
+            const dayRecords = schedules.filter(s => s.date === dateStr && activeNames.has(s.name));
+
             let busyM = new Set(), busyA = new Set(), busyE = new Set();
             let busyMDetails = [], busyADetails = [], busyEDetails = [];
 
             dayRecords.forEach(r => {
                 if(r.status === 'busy') {
-                    if(r.slot === 'Morning' || r.slot === 'AllDay') { busyM.add(r.name); busyMDetails.push(`${r.name} (${r.detail||'มีเรียน'})`); }
-                    if(r.slot === 'Afternoon' || r.slot === 'AllDay') { busyA.add(r.name); busyADetails.push(`${r.name} (${r.detail||'มีเรียน'})`); }
-                    if(r.slot === 'Evening' || r.slot === 'AllDay') { busyE.add(r.name); busyEDetails.push(`${r.name} (${r.detail||'มีเรียน'})`); }
+                    if(r.slot === 'Morning' || r.slot === 'AllDay') { busyM.add(r.name); busyMDetails.push(`${r.name} (${r.detail||'ติดธุระ/เรียน'})`); }
+                    if(r.slot === 'Afternoon' || r.slot === 'AllDay') { busyA.add(r.name); busyADetails.push(`${r.name} (${r.detail||'ติดธุระ/เรียน'})`); }
+                    if(r.slot === 'Evening' || r.slot === 'AllDay') { busyE.add(r.name); busyEDetails.push(`${r.name} (${r.detail||'ติดธุระ/เรียน'})`); }
                 }
             });
 
-            const total = students.length;
+            const total = activeStudents.length;
             return {
-                morningFree: total - busyM.size, busyMList: busyMDetails,
-                afternoonFree: total - busyA.size, busyAList: busyADetails,
-                eveningFree: total - busyE.size, busyEList: busyEDetails
+                morningFree: Math.max(0, total - busyM.size), busyMList: busyMDetails,
+                afternoonFree: Math.max(0, total - busyA.size), busyAList: busyADetails,
+                eveningFree: Math.max(0, total - busyE.size), busyEList: busyEDetails
             };
         }
 
-        // แสดงกล่องรายละเอียดเมื่อคลิกวันที่
+        function formatDateThai(dateStr) {
+            const parts = dateStr.split('-');
+            const year = parseInt(parts[0]);
+            const month = parseInt(parts[1]) - 1;
+            const day = parseInt(parts[2]);
+
+            const monthTh = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"][month];
+            return `วันที่ ${day} ${monthTh} ${year}`;
+        }
+
         function showDayDetail(dateStr) {
-            selectedDateStr = dateStr;
-            const stats = calculateDayStats(dateStr);
-            const total = students.length;
+            const activeStudents = getActiveStudents();
+            const stats = calculateDayStats(dateStr, activeStudents);
+            const total = activeStudents.length;
 
             document.getElementById('dayDetailBox').classList.remove('hidden');
-            document.getElementById('selectedDateTitle').textContent = `รายละเอียดเวลาว่าง: วันที่ ${dateStr}`;
+            document.getElementById('selectedDateTitle').textContent = `รายละเอียดเวลาว่าง: ${formatDateThai(dateStr)}`;
+            document.getElementById('selectedGroupCountDisplay').textContent = total;
 
             const renderBar = (label, freeCount, busyList) => {
-                const percent = Math.round((freeCount / total) * 100);
+                const percent = total > 0 ? Math.round((freeCount / total) * 100) : 0;
                 const busyText = busyList.length > 0 ? busyList.join(', ') : 'ไม่มี (ทุกคนว่างหมด)';
                 return `
                     <div class="p-3 bg-slate-50 border rounded-lg">
@@ -490,11 +509,10 @@
                 ${renderBar('🌇 เย็น (16:00 - 19:00)', stats.eveningFree, stats.busyEList)}
             `;
             
-            // เลื่อนลงมาดูรายละเอียด
             document.getElementById('dayDetailBox').scrollIntoView({ behavior: 'smooth' });
         }
 
-        // --- ระบบอัปโหลดไฟล์ Excel / CSV ---
+        // --- ระบบอัปโหลดไฟล์ CSV ---
         function handleStudentFileUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -505,25 +523,27 @@
                 complete: function(results) {
                     const parsedList = [];
                     results.data.forEach(row => {
-                        const firstName = row['ชื่อจริง'] || row['firstName'] || row['ชื่อ'] || '';
-                        const lastName = row['นามสกุล'] || row['lastName'] || '';
+                        const section = row['Section'] || row['section'] || row['sec'] || '1';
+                        const name = row['ชื่อ-สกุล'] || row['ชื่อสกุล'] || row['ชื่อ'] || row['name'] || '';
                         const nickname = row['ชื่อเล่น'] || row['nickname'] || '';
-                        if(firstName) parsedList.push({ firstName, lastName, nickname });
+                        
+                        if(name.trim()) {
+                            parsedList.push({ section: String(section).trim(), name: name.trim(), nickname: nickname.trim() });
+                        }
                     });
 
                     if(parsedList.length > 0) {
                         students = parsedList;
                         localStorage.setItem('unispace_students', JSON.stringify(students));
                         
-                        // อัปเดตขึ้น Firebase
                         if(window.db) {
                             window.setDoc(window.doc(window.db, "settings", "students_list"), { list: students });
                         }
                         
                         updateStudentUI();
-                        alert(`นำเข้าข้อมูลรายชื่อสำเร็จทั้งหมด ${students.length} คน!`);
+                        alert(`นำเข้าข้อมูลรายชื่อจากไฟล์ CSV สำเร็จทั้งหมด ${students.length} คน!`);
                     } else {
-                        alert("ไม่พบข้อมูลรายชื่อในไฟล์ กรุณาตรวจสอบหัวคอลัมน์ (ต้องมีคำว่า 'ชื่อจริง' หรือ 'ชื่อ')");
+                        alert("ไม่พบข้อมูลในไฟล์ กรุณาตรวจสอบหัวคอลัมน์ ต้องมีคำว่า 'Section', 'ชื่อ-สกุล', และ 'ชื่อเล่น'");
                     }
                 }
             });
@@ -539,24 +559,27 @@
         }
 
         function updateStudentUI() {
-            document.querySelectorAll('.totalCountSpan').forEach(el => el.textContent = students.length);
-            document.getElementById('totalStudentsDisplay').textContent = students.length;
+            const sec1 = students.filter(s => String(s.section).trim() === "1").length;
+            const sec2 = students.filter(s => String(s.section).trim() === "2").length;
 
-            // Render ในแท็บตั้งค่า
+            document.querySelectorAll('.totalCountSpan').forEach(el => el.textContent = students.length);
+            document.getElementById('sec1CountSpan').textContent = sec1;
+            document.getElementById('sec2CountSpan').textContent = sec2;
+
             const container = document.getElementById('studentListContainer');
             container.innerHTML = students.map((s, idx) => `
-                <div class="p-1.5 bg-white border rounded flex justify-between items-center">
-                    <span>${idx+1}. <b>${s.firstName} ${s.lastName}</b> (${s.nickname || 'ไม่มีชื่อเล่น'})</span>
+                <div class="p-1.5 bg-white border rounded flex justify-between items-center text-xs">
+                    <span><b>Sec ${s.section}:</b> ${s.name} (${s.nickname || '-'})</span>
                 </div>
             `).join('');
 
-            // Render ลงใน Dropdown หน้าลงตาราง
             const select = document.getElementById('userSelect');
             select.innerHTML = '<option value="">-- เลือกชื่อของคุณ --</option>' + 
-                students.map(s => `<option value="${s.firstName} (${s.nickname})">${s.firstName} ${s.lastName} (${s.nickname})</option>`).join('');
+                students.map(s => `<option value="${s.name} (${s.nickname})">Sec ${s.section}: ${s.name} (${s.nickname})</option>`).join('');
+                
+            renderCalendar();
         }
 
-        // --- ระบบอัปเดตลงตาราง ---
         async function handleManualSave(e) {
             e.preventDefault();
             const name = document.getElementById('userSelect').value;
