@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Prompt Font -->
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Tesseract.js (สำหรับ AI สแกนภาพ OCR) -->
+    <!-- Tesseract.js -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <!-- Firebase SDK (v10) -->
@@ -18,9 +18,9 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Firebase Config (ใส่คีย์จริงเรียบร้อยแล้ว)
+        // 🔴 อย่าลืมนำคีย์ของคุณมาใส่ตรงนี้
         const firebaseConfig = {
-            apiKey: "AIzaSyALhJ296G7r9-pDuu_YcDaGkoCU7pTELs0",
+            apiKey: "ใส่_API_KEY_ของคุณตรงนี้",
             authDomain: "unispace-app.firebaseapp.com",
             databaseURL: "https://unispace-app-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "unispace-app",
@@ -30,11 +30,9 @@
             measurementId: "G-K5H44K4K3N"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Export ตัวแปรไปใช้ใน global window
         window.db = db;
         window.collection = collection;
         window.addDoc = addDoc;
@@ -46,17 +44,32 @@
     <style>
         body { font-family: 'Prompt', sans-serif; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: #e2e8f0; border: 1px solid #e2e8f0; }
-        .calendar-cell { background: white; min-height: 100px; padding: 0.5rem; position: relative; }
+        .calendar-cell { background: white; min-height: 110px; padding: 0.25rem; position: relative; }
         .calendar-cell.inactive { background: #f8fafc; color: #94a3b8; }
-        .calendar-cell.out-of-term { background: #f1f5f9; opacity: 0.6; cursor: not-allowed; }
+        .calendar-cell.out-of-term { background: #f1f5f9; cursor: pointer; } /* เลิกบล็อกการกดช่วงปิดเทอม */
         .calendar-cell.holiday { background: #fff1f2; }
         .calendar-header { display: grid; grid-template-columns: repeat(7, 1fr); background: #f1f5f9; border: 1px solid #e2e8f0; border-bottom: none; }
+        
         .holiday-badge {
             background-color: #ffe4e6;
             color: #e11d48;
             border: 1px solid #fecdd3;
-            font-size: 0.65rem;
-            padding: 2px 4px;
+            font-size: 0.6rem;
+            padding: 1px 2px;
+            border-radius: 4px;
+            margin-bottom: 2px;
+            font-weight: 600;
+            display: inline-block;
+            width: 100%;
+            text-align: center;
+            line-height: 1.1;
+        }
+        .vacation-badge {
+            background-color: #fef3c7;
+            color: #d97706;
+            border: 1px solid #fde68a;
+            font-size: 0.6rem;
+            padding: 1px 2px;
             border-radius: 4px;
             margin-bottom: 2px;
             font-weight: 600;
@@ -96,7 +109,7 @@
 
         <!-- TAB 1: ปฏิทินกลุ่ม -->
         <section id="calendar-tab" class="tab-content block space-y-4">
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
                     <div>
                         <h2 class="text-xl font-bold text-slate-800 flex items-center">
@@ -107,28 +120,29 @@
                         </p>
                     </div>
                     
-                    <div class="flex items-center gap-2">
-                        <button onclick="changeMonth(-1)" class="p-2 hover:bg-slate-100 rounded-lg transition"><i class="fa-solid fa-chevron-left"></i></button>
-                        <span id="currentMonthDisplay" class="font-bold text-lg min-w-[140px] text-center">เดือน...</span>
-                        <button onclick="changeMonth(1)" class="p-2 hover:bg-slate-100 rounded-lg transition"><i class="fa-solid fa-chevron-right"></i></button>
+                    <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
+                        <button onclick="changeMonth(-1)" class="px-3 py-2 hover:bg-white rounded-md transition shadow-sm"><i class="fa-solid fa-chevron-left text-slate-600"></i></button>
+                        <span id="currentMonthDisplay" class="font-bold text-lg min-w-[150px] text-center text-indigo-700">เดือน...</span>
+                        <button onclick="changeMonth(1)" class="px-3 py-2 hover:bg-white rounded-md transition shadow-sm"><i class="fa-solid fa-chevron-right text-slate-600"></i></button>
                     </div>
                 </div>
 
                 <!-- Color Legend -->
-                <div class="flex flex-wrap gap-3 mb-4 text-xs font-medium">
+                <div class="flex flex-wrap gap-2 md:gap-3 mb-4 text-[10px] md:text-xs font-medium">
                     <span class="flex items-center gap-1 text-slate-600"><div class="w-3 h-3 rounded-full bg-emerald-500"></div> ว่างตรงกัน</span>
                     <span class="flex items-center gap-1 text-slate-600"><div class="w-3 h-3 rounded-full bg-amber-400"></div> ว่างบางคน</span>
                     <span class="flex items-center gap-1 text-slate-600"><div class="w-3 h-3 rounded-full bg-rose-500"></div> ไม่ว่าง</span>
-                    <span class="flex items-center gap-1 text-slate-600 ml-2 border-l pl-3"><div class="w-3 h-3 rounded bg-rose-100 border border-rose-300"></div> วันหยุดราชการ/เสาร์-อาทิตย์</span>
+                    <span class="flex items-center gap-1 text-slate-600 ml-1 md:ml-2 border-l pl-2 md:pl-3"><div class="w-3 h-3 rounded bg-rose-100 border border-rose-300"></div> วันหยุดราชการ</span>
+                    <span class="flex items-center gap-1 text-slate-600"><div class="w-3 h-3 rounded bg-amber-100 border border-amber-300"></div> ปิดเทอม</span>
                 </div>
 
                 <div id="apiLoadingStatus" class="text-xs text-amber-600 mb-2 hidden">
-                    <i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังดึงข้อมูลวันหยุดราชการ...
+                    <i class="fa-solid fa-spinner fa-spin mr-1"></i> กำลังโหลดข้อมูล...
                 </div>
 
                 <!-- Calendar Grid -->
-                <div class="calendar-header text-center text-sm font-bold py-2 text-slate-600">
-                    <div class="text-rose-500">อาทิตย์</div><div>จันทร์</div><div>อังคาร</div><div>พุธ</div><div>พฤหัสฯ</div><div>ศุกร์</div><div class="text-rose-500">เสาร์</div>
+                <div class="calendar-header text-center text-xs md:text-sm font-bold py-2 text-slate-600">
+                    <div class="text-rose-500">อา.</div><div>จ.</div><div>อ.</div><div>พ.</div><div>พฤ.</div><div>ศ.</div><div class="text-rose-500">ส.</div>
                 </div>
                 <div id="calendarGrid" class="calendar-grid rounded-b-lg overflow-hidden text-sm"></div>
             </div>
@@ -168,22 +182,32 @@
                     </div>
                 </div>
 
-                <!-- ฟอร์มระบุเวลาว่างด้วยตัวเอง -->
+                <!-- ฟอร์มระบุเวลาว่างด้วยตัวเอง (เพิ่ม Bulk Date Selection) -->
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center">
-                        <i class="fa-solid fa-pen-to-square text-indigo-600 mr-2"></i> อัปเดตสถานะด้วยตัวเอง
+                        <i class="fa-solid fa-pen-to-square text-indigo-600 mr-2"></i> อัปเดตสถานะด้วยตัวเอง (เลือกหลายวันได้)
                     </h2>
                     
                     <form id="availabilityForm" class="space-y-4" onsubmit="handleManualSave(event)">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">ชื่อของคุณ</label>
-                                <input type="text" id="userName" required placeholder="เช่น นิว" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-indigo-500">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">ชื่อของคุณ</label>
+                            <input type="text" id="userName" required placeholder="เช่น นิว" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-indigo-500">
+                        </div>
+
+                        <!-- Bulk Date Section -->
+                        <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                            <label class="block text-sm font-bold text-indigo-700 mb-2"><i class="fa-regular fa-calendar-check mr-1"></i> เลือกช่วงวันที่ต้องการลงตาราง</label>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-600 mb-1">จากวันที่ (เริ่มต้น)</label>
+                                    <input type="date" id="startDate" required class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-md outline-none focus:border-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-600 mb-1">ถึงวันที่ (สิ้นสุด)</label>
+                                    <input type="date" id="endDate" required class="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-md outline-none focus:border-indigo-500">
+                                </div>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">วันที่</label>
-                                <input type="date" id="eventDate" required class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:border-indigo-500">
-                            </div>
+                            <p class="text-[10px] text-slate-500 mt-1">* หากต้องการลงแค่วันเดียว ให้เลือก 'จากวันที่' และ 'ถึงวันที่' เป็นวันเดียวกัน</p>
                         </div>
 
                         <div>
@@ -308,7 +332,25 @@
             term2: { start: '', end: '' }
         };
 
-        let publicHolidays = {};
+        // Fallback: ข้อมูลวันหยุดไทยสำคัญๆ ที่ระบุเองได้ (แก้ปัญหา API ไม่ครบ)
+        let customThaiHolidays = {
+            "2026-01-01": "วันขึ้นปีใหม่",
+            "2026-04-06": "วันจักรี",
+            "2026-04-13": "วันสงกรานต์",
+            "2026-04-14": "วันสงกรานต์",
+            "2026-04-15": "วันสงกรานต์",
+            "2026-05-01": "วันแรงงาน",
+            "2026-05-04": "วันฉัตรมงคล",
+            "2026-06-03": "วันเฉลิมฯ พระราชินี",
+            "2026-07-28": "วันเฉลิมฯ ร.10",
+            "2026-08-12": "วันแม่แห่งชาติ",
+            "2026-10-13": "วันนวมินทรมหาราช",
+            "2026-10-23": "วันปิยมหาราช",
+            "2026-12-05": "วันพ่อแห่งชาติ",
+            "2026-12-10": "วันรัฐธรรมนูญ",
+            "2026-12-31": "วันสิ้นปี"
+        };
+        let publicHolidays = { ...customThaiHolidays }; // เริ่มต้นด้วยข้อมูล Fallback ก่อน
         let currentYearFetched = null;
         let currentDate = new Date();
         let scannedDataTemp = [];
@@ -393,19 +435,29 @@
                 const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/TH`);
                 if (!res.ok) throw new Error('API Error');
                 const holidays = await res.json();
-                holidays.forEach(h => { publicHolidays[h.date] = h.localName || h.name; });
+                
+                // เอาข้อมูลจาก API มารวมกับ Custom Fallback (ถ้าซ้ำกัน API จะทับ)
+                holidays.forEach(h => { 
+                    publicHolidays[h.date] = h.localName || h.name; 
+                });
+                
+                // ถ้า API ไม่ดึงวันสำคัญมา เราเอา Custom ของเรายัดกลับเข้าไปทับอีกทีเพื่อความชัวร์
+                for (const [date, name] of Object.entries(customThaiHolidays)) {
+                    if (date.startsWith(year.toString())) {
+                        publicHolidays[date] = name;
+                    }
+                }
+                
                 currentYearFetched = year;
             } catch (error) {
-                publicHolidays[`${year}-01-01`] = 'วันขึ้นปีใหม่';
-                publicHolidays[`${year}-04-13`] = 'วันสงกรานต์';
-                publicHolidays[`${year}-12-05`] = 'วันพ่อแห่งชาติ';
+                console.log("API Error: Using custom holidays fallback.");
             } finally {
                 document.getElementById('apiLoadingStatus').classList.add('hidden');
             }
         }
 
         async function changeMonth(step) {
-            currentDate.setMonth(currentDate.getMonth() + step);
+            currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + step, 1);
             if(currentDate.getFullYear() !== currentYearFetched) {
                 await fetchPublicHolidays(currentDate.getFullYear());
             }
@@ -436,33 +488,45 @@
                 const isHoliday = isWeekend || holidayName;
                 const inTerm = isDateInActiveTerm(dateStr);
 
-                let cellClasses = "calendar-cell flex flex-col relative group transition";
-                if(!inTerm) cellClasses += " out-of-term";
-                else if(isHoliday) cellClasses += " holiday cursor-pointer hover:bg-rose-50";
-                else cellClasses += " cursor-pointer hover:bg-slate-50";
+                let cellClasses = "calendar-cell flex flex-col relative group transition cursor-pointer hover:bg-slate-50";
+                
+                // ตกแต่งคลาสตามสถานะ
+                if(!inTerm) {
+                    cellClasses += " out-of-term";
+                } else if(isHoliday) {
+                    cellClasses += " holiday";
+                }
 
                 let badgesHTML = '';
-                if (holidayName) badgesHTML += `<div class="holiday-badge" title="${holidayName}">${holidayName}</div>`;
+                
+                // โชว์ป้ายวันหยุด
+                if (holidayName) {
+                    badgesHTML += `<div class="holiday-badge" title="${holidayName}">${holidayName}</div>`;
+                }
+                
+                // โชว์ป้ายแจ้งเตือนปิดเทอม (แทนการล็อกปุ่ม)
+                if(!inTerm) {
+                    badgesHTML += `<div class="vacation-badge" title="ปิดเทอม">ช่วงปิดเทอม</div>`;
+                }
 
+                // วิเคราะห์นัดหมายที่มีในระบบ (ไม่ว่าจะวันหยุดหรือปิดเทอม ถ้ามีคนลงคิวก็จะแสดง)
                 const availabilityInfo = analyzeGroupAvailability(dateStr);
                 
-                if (inTerm) {
-                    if (availabilityInfo.matchMorning) badgesHTML += `<div class="mt-1 text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">✨ ว่าง: เช้า</div>`;
-                    if (availabilityInfo.matchAfternoon) badgesHTML += `<div class="mt-1 text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">✨ ว่าง: บ่าย</div>`;
-                    if (availabilityInfo.matchEvening) badgesHTML += `<div class="mt-1 text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">✨ ว่าง: เย็น</div>`;
+                if (availabilityInfo.matchMorning) badgesHTML += `<div class="mt-1 text-[9px] md:text-[10px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded border border-emerald-200">✨ ว่าง: เช้า</div>`;
+                if (availabilityInfo.matchAfternoon) badgesHTML += `<div class="mt-1 text-[9px] md:text-[10px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded border border-emerald-200">✨ ว่าง: บ่าย</div>`;
+                if (availabilityInfo.matchEvening) badgesHTML += `<div class="mt-1 text-[9px] md:text-[10px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded border border-emerald-200">✨ ว่าง: เย็น</div>`;
 
-                    if (!availabilityInfo.matchMorning && !availabilityInfo.matchAfternoon && !availabilityInfo.matchEvening && availabilityInfo.hasSomeFree) {
-                        badgesHTML += `<div class="mt-1 text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded border border-amber-200">ว่างบางคน</div>`;
-                    }
-                    if (availabilityInfo.allBusy) {
-                        badgesHTML += `<div class="mt-1 text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded border border-rose-200">❌ ไม่ว่างทั้งหมด</div>`;
-                    }
+                if (!availabilityInfo.matchMorning && !availabilityInfo.matchAfternoon && !availabilityInfo.matchEvening && availabilityInfo.hasSomeFree) {
+                    badgesHTML += `<div class="mt-1 text-[9px] md:text-[10px] bg-amber-50 text-amber-600 px-1 py-0.5 rounded border border-amber-200">ว่างบางคน</div>`;
+                }
+                if (availabilityInfo.allBusy) {
+                    badgesHTML += `<div class="mt-1 text-[9px] md:text-[10px] bg-rose-100 text-rose-700 px-1 py-0.5 rounded border border-rose-200">❌ ไม่ว่างทั้งหมด</div>`;
                 }
 
                 const dateColor = isHoliday ? "text-rose-600" : "text-slate-700";
 
                 grid.innerHTML += `
-                    <div class="${cellClasses}" onclick="handleClickDate('${dateStr}', ${inTerm})">
+                    <div class="${cellClasses}" onclick="handleClickDate('${dateStr}')">
                         <span class="font-bold ${dateColor}">${day}</span>
                         <div class="flex flex-col gap-0.5 mt-1 flex-1 overflow-y-auto hide-scrollbar">
                             ${badgesHTML}
@@ -497,13 +561,17 @@
             return { matchMorning, matchAfternoon, matchEvening, hasSomeFree, allBusy };
         }
 
-        function handleClickDate(dateStr, inTerm) {
-            if(!inTerm) return alert("ไม่อยู่ในช่วงเปิดเทอม");
-            document.getElementById('eventDate').value = dateStr;
+        // กดวันที่บนปฏิทิน -> ตั้งค่า Start Date และ End Date เป็นวันเดียวกัน
+        function handleClickDate(dateStr) {
+            document.getElementById('startDate').value = dateStr;
+            document.getElementById('endDate').value = dateStr;
             switchTab('update-tab');
         }
 
-        document.getElementById('eventDate').value = new Date().toISOString().split('T')[0];
+        // Set ค่าเริ่มต้นให้ฟอร์ม
+        const todayStr = new Date().toISOString().split('T')[0];
+        document.getElementById('startDate').value = todayStr;
+        document.getElementById('endDate').value = todayStr;
 
         function toggleTimeSlots() {
             const isAllDay = document.getElementById('allDayCheck').checked;
@@ -514,10 +582,40 @@
             document.getElementById('slotContainer').style.opacity = isAllDay ? '0.5' : '1';
         }
 
+        // Helper: สร้าง Array ของวันที่ทั้งหมดระหว่าง Start และ End
+        function getDatesInRange(startDate, endDate) {
+            const date = new Date(startDate.getTime());
+            const dates = [];
+            while (date <= endDate) {
+                dates.push(new Date(date).toISOString().split('T')[0]);
+                date.setDate(date.getDate() + 1);
+            }
+            return dates;
+        }
+
         async function handleManualSave(e) {
             e.preventDefault();
-            const date = document.getElementById('eventDate').value;
-            if(!isDateInActiveTerm(date)) return alert("วันที่เลือกไม่อยู่ในช่วงเปิดเทอม");
+            
+            const startVal = document.getElementById('startDate').value;
+            const endVal = document.getElementById('endDate').value;
+            
+            if(!startVal || !endVal) return alert("กรุณาเลือกช่วงวันที่");
+            
+            const startDate = new Date(startVal);
+            const endDate = new Date(endVal);
+            
+            if(startDate > endDate) {
+                return alert("วันที่เริ่มต้น ต้องมาก่อนหรือเท่ากับวันที่สิ้นสุด");
+            }
+
+            const datesToSave = getDatesInRange(startDate, endDate);
+            
+            // เช็คว่ามีวันที่อยู่นอกเทอมไหม (แค่แจ้งเตือน แต่ยอมให้บันทึกได้)
+            const outOfTermDates = datesToSave.filter(d => !isDateInActiveTerm(d));
+            if(outOfTermDates.length > 0) {
+                const proceed = confirm(`มี ${outOfTermDates.length} วันที่คุณเลือกเป็นช่วงปิดเทอม คุณต้องการบันทึกข้อมูลตารางลงในวันหยุดนี้ใช่หรือไม่?`);
+                if(!proceed) return;
+            }
 
             const name = document.getElementById('userName').value || 'คุณ';
             const status = document.querySelector('input[name="statusType"]:checked').value;
@@ -530,19 +628,25 @@
 
             if(selectedSlots.length === 0) return alert("กรุณาเลือกช่วงเวลาอย่างน้อย 1 ช่วง");
 
-            for(let slot of selectedSlots) {
-                await window.addDoc(window.collection(window.db, "schedules"), {
-                    name, date, slot, status, detail, createdAt: new Date()
-                });
+            // วนลูปเซฟข้อมูลทีละวัน ทีละ Slot ไปยัง Firebase
+            let saveCount = 0;
+            for(let dateStr of datesToSave) {
+                for(let slot of selectedSlots) {
+                    await window.addDoc(window.collection(window.db, "schedules"), {
+                        name, date: dateStr, slot, status, detail, createdAt: new Date()
+                    });
+                    saveCount++;
+                }
             }
 
-            alert('บันทึกข้อมูลออนไลน์สำเร็จ!');
+            alert(`บันทึกข้อมูลออนไลน์สำเร็จ! (${saveCount} รายการ)`);
             document.querySelectorAll('input[name="timeSlot"]').forEach(el => el.checked = false);
             document.getElementById('allDayCheck').checked = false;
             document.getElementById('statusDetail').value = '';
             toggleTimeSlots();
         }
 
+        // --- ส่วนการสแกนรูปภาพ AI ทำงานเหมือนเดิม ---
         async function previewAndScanImage(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -614,12 +718,11 @@
             let savedCount = 0;
 
             for(let item of scannedDataTemp) {
-                if(isDateInActiveTerm(item.date)) {
-                    await window.addDoc(window.collection(window.db, "schedules"), {
-                        name, date: item.date, slot: item.slot, status: 'busy', detail: 'สแกนตารางเรียน', createdAt: new Date()
-                    });
-                    savedCount++;
-                }
+                // อนุญาตให้เซฟตารางเรียนลงไปได้เลย แม้จะเป็นปิดเทอม (เพราะบางคนมีเรียนซัมเมอร์)
+                await window.addDoc(window.collection(window.db, "schedules"), {
+                    name, date: item.date, slot: item.slot, status: 'busy', detail: 'สแกนตารางเรียน', createdAt: new Date()
+                });
+                savedCount++;
             }
 
             alert(`บันทึกตารางเรียนลงฐานข้อมูลสำเร็จ ${savedCount} รายการ`);
