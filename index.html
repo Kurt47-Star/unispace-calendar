@@ -18,11 +18,17 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // 🔴 นำ คีย์ของคุณ จากขั้นตอนที่ 3 มาวางทับตรงนี้
-     const firebaseConfig = {
-    apiKey: "ใส่_API_KEY_ของคุณตรงนี้",
-    ...
-};
+        // Firebase Config (ใส่คีย์จริงเรียบร้อยแล้ว)
+        const firebaseConfig = {
+            apiKey: "AIzaSyALhJ296G7r9-pDuu_YcDaGkoCU7pTELs0",
+            authDomain: "unispace-app.firebaseapp.com",
+            databaseURL: "https://unispace-app-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "unispace-app",
+            storageBucket: "unispace-app.firebasestorage.app",
+            messagingSenderId: "519963754683",
+            appId: "1:519963754683:web:a47f40f86a220a7cf3299e",
+            measurementId: "G-K5H44K4K3N"
+        };
 
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
